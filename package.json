@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "express": "^4.21.2",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

@@ -1,14 +1,18 @@
 const express = require("express");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
+
 const invoiceRoutes = require("./routes/invoice.routes");
 
 const app = express();
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(express.json());
 
 const tenantMiddleware = require("./middleware/tenant.middleware");
 
 app.use(tenantMiddleware);
-
+    
 app.use("/invoices", invoiceRoutes);
 
 const paymentRoutes = require("./routes/payment.routes");
