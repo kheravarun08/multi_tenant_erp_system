@@ -1,0 +1,7 @@
+module.exports = {
+    DRAFT: "DRAFT",
+    APPROVED: "APPROVED",
+    PARTIALLY_PAID: "PARTIALLY_PAID",
+    PAID: "PAID",
+    CANCELLED: "CANCELLED"
+};
