@@ -1,0 +1,245 @@
+const { v4: uuidv4 } = require("uuid");
+
+/*
+These arrays already exist in invoice.controller.js.
+
+For a real application these would be DB tables.
+*/
+const {
+    invoices,
+    payments,
+    paymentAllocations,
+    journalEntries,
+    journalEntryLines
+} = require("../data/mock-db");
+
+exports.createPayment = async (req, res) => {
+    try {
+
+        // const tenantId = req.headers["x-tenant-id"];
+        // const entityId = req.headers["x-entity-id"];
+        // const userId = req.headers["x-user-id"];
+
+        const {
+            tenantId,
+            entityId,
+            userId
+        } = req.context;
+
+        if (!tenantId) {
+            return res.status(400).json({
+                success: false,
+                message: "x-tenant-id header is required"
+            });
+        }
+
+        const {
+            customerId,
+            amount,
+            currency,
+            exchangeRate,
+            paymentDate,
+            allocations
+        } = req.body;
+
+        let finalAllocations = allocations;
+
+        if (
+            (!allocations || allocations.length === 0)
+            && req.body.autoAllocate
+        ) {
+            finalAllocations = invoices
+                .filter(
+                    i =>
+                        i.customerId === customerId &&
+                        i.balanceAmount > 0
+                )
+                .sort(
+                    (a, b) =>
+                        new Date(a.dueDate)
+                        -
+                        new Date(b.dueDate)
+                )
+                .map(i => ({
+                    invoiceId: i.id,
+                    amount: Math.min(
+                        i.balanceAmount,
+                        amount
+                    )
+                }));
+        }
+        if (!customerId) {
+            return res.status(400).json({
+                success: false,
+                message: "customerId is required"
+            });
+        }
+
+        if (!amount || amount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Payment amount must be greater than zero"
+            });
+        }
+
+        const paymentId = uuidv4();
+
+        const payment = {
+            id: paymentId,
+            tenantId,
+            entityId,
+            customerId,
+            amount,
+            currency,
+            exchangeRate,
+            paymentDate,
+            referenceNumber: `PAY-${Date.now()}`,
+            createdBy: userId,
+            createdAt: new Date()
+        };
+
+        payments.push(payment);
+
+        let totalAllocated = 0;
+
+        const allocationResults = [];
+
+        /*
+            Manual allocation mode
+        */
+        if (allocations && allocations.length > 0) {
+
+            for(const allocation of finalAllocations) {
+
+                const invoice = invoices.find(
+                    inv =>
+                        inv.id === allocation.invoiceId &&
+                        inv.tenantId === tenantId
+                );
+
+                if (!invoice) {
+                    return res.status(404).json({
+                        success: false,
+                        message: `Invoice ${allocation.invoiceId} not found`
+                    });
+                }
+
+                if (
+                    invoice.status !== "APPROVED" &&
+                    invoice.status !== "PARTIALLY_PAID"
+                ) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invoice ${invoice.invoiceNumber} cannot receive payment`
+                    });
+                }
+
+                if (allocation.amount > invoice.balanceAmount) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Allocation exceeds invoice balance`
+                    });
+                }
+
+                paymentAllocations.push({
+                    id: uuidv4(),
+                    paymentId,
+                    invoiceId: invoice.id,
+                    allocatedAmount: allocation.amount,
+                    allocatedAt: new Date()
+                });
+
+                invoice.balanceAmount -= allocation.amount;
+
+                totalAllocated += allocation.amount;
+
+                if (invoice.balanceAmount === 0) {
+                    invoice.status = "PAID";
+                } else {
+                    invoice.status = "PARTIALLY_PAID";
+                }
+
+                allocationResults.push({
+                    invoiceId: invoice.id,
+                    invoiceNumber: invoice.invoiceNumber,
+                    allocatedAmount: allocation.amount,
+                    remainingBalance: invoice.balanceAmount
+                });
+            }
+        }
+
+        /*
+            Validate payment amount
+        */
+        if (totalAllocated > amount) {
+            return res.status(400).json({
+                success: false,
+                message: "Allocated amount exceeds payment amount"
+            });
+        }
+
+        /*
+            Generate GL Entry
+        */
+
+        const journalEntry = {
+            id: `JE-${Date.now()}`,
+            tenantId,
+            entityId,
+            referenceType: "PAYMENT",
+            referenceId: paymentId,
+            postingDate: new Date(),
+            description: `Customer Payment ${payment.referenceNumber}`,
+            createdBy: userId
+        };
+
+        journalEntries.push(journalEntry);
+
+        /*
+            Debit Cash / Bank
+        */
+
+        journalEntryLines.push({
+            id: uuidv4(),
+            journalEntryId: journalEntry.id,
+            glAccountCode: "1000",
+            glAccountName: "Bank Account",
+            debit: amount,
+            credit: 0
+        });
+
+        /*
+            Credit Accounts Receivable
+        */
+
+        journalEntryLines.push({
+            id: uuidv4(),
+            journalEntryId: journalEntry.id,
+            glAccountCode: "1100",
+            glAccountName: "Accounts Receivable",
+            debit: 0,
+            credit: amount
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: "Payment recorded successfully",
+            data: {
+                paymentId,
+                paymentReference: payment.referenceNumber,
+                amount,
+                allocations: allocationResults,
+                journalEntryId: journalEntry.id
+            }
+        });
+
+    } catch (error) {
+
+        console.error(error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+    }
+};
