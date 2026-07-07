@@ -1,0 +1,42 @@
+
+
+services:
+
+  erp-api:
+    build: .
+    container_name: erp-api
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16
+
+    container_name: erp-postgres
+
+    restart: always
+
+    environment:
+      POSTGRES_USER: erpuser
+      POSTGRES_PASSWORD: erppassword
+      POSTGRES_DB: erpdb
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
