@@ -5,7 +5,8 @@ const {
     invoiceLineItems,
     payments,
     paymentAllocations,
-    auditLogs
+    auditLogs,
+    journalEntries,
 } = require("../data/mock-db");
 const {
     canTransition
@@ -88,7 +89,7 @@ exports.createInvoice = async (req, res) => {
 
             currency,
             exchangeRate,
-
+            //Proper invoice state transitions with validation
             status: "DRAFT",
 
             subtotal,
@@ -254,6 +255,7 @@ exports.approveInvoice = async (req, res) => {
             });
         }
 
+        //Proper invoice state transitions with validation
         if (
             !canTransition(
                 invoice.status,
@@ -283,6 +285,26 @@ exports.approveInvoice = async (req, res) => {
         invoice.status = "APPROVED";
         invoice.updatedBy = userId;
         invoice.updatedAt = new Date();
+
+        /*
+         Automatically generate General Ledger
+         journal entries when an invoice is approved.
+         Draft invoices never impact accounting books.
+        */
+        const existingJournal = journalEntries.find(
+            je =>
+                je.referenceType === "INVOICE" &&
+                je.referenceId === invoice.id &&
+                je.tenantId === tenantId &&
+                je.entityId === entityId
+        );
+
+        if (existingJournal) {
+            return res.status(400).json({
+                success: false,
+                message: "Journal entry already exists for this invoice."
+            });
+        }
 
         const journalEntry = glService.createInvoiceJournal(
             invoice,
