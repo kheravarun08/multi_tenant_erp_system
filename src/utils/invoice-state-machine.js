@@ -1,3 +1,4 @@
+//Proper invoice state transitions with validation
 const transitions = {
     DRAFT: ["APPROVED"],
     APPROVED: ["PARTIALLY_PAID", "PAID"],
