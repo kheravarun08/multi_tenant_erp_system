@@ -16,10 +16,6 @@ const {
 exports.createPayment = async (req, res) => {
     try {
 
-        // const tenantId = req.headers["x-tenant-id"];
-        // const entityId = req.headers["x-entity-id"];
-        // const userId = req.headers["x-user-id"];
-
         const {
             tenantId,
             entityId,
