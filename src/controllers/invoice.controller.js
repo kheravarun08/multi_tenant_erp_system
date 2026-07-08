@@ -125,9 +125,9 @@ exports.createInvoice = async (req, res) => {
 exports.getInvoiceById = async (req, res) => {
     try {
 
-        // const tenantId = req.headers["x-tenant-id"];
         const {
-            tenantId
+            tenantId,
+            entityId
         } = req.context;
 
         if (!tenantId) {
@@ -142,7 +142,8 @@ exports.getInvoiceById = async (req, res) => {
         const invoice = invoices.find(
             inv =>
                 inv.id === invoiceId &&
-                inv.tenantId === tenantId
+                inv.tenantId === tenantId &&
+                inv.entityId === entityId
         );
 
         if (!invoice) {
@@ -163,7 +164,10 @@ exports.getInvoiceById = async (req, res) => {
         const paymentHistory = allocations.map(allocation => {
 
             const payment = payments.find(
-                p => p.id === allocation.paymentId
+                p =>
+                    p.id === allocation.paymentId &&
+                    p.tenantId === tenantId &&
+                    p.entityId === entityId
             );
 
             return {
@@ -223,6 +227,7 @@ exports.approveInvoice = async (req, res) => {
 
         const {
             tenantId,
+            entityId,
             userId
         } = req.context;
 
@@ -238,7 +243,8 @@ exports.approveInvoice = async (req, res) => {
         const invoice = invoices.find(
             inv =>
                 inv.id === invoiceId &&
-                inv.tenantId === tenantId
+                inv.tenantId === tenantId &&
+                inv.entityId === entityId
         );
 
         if (!invoice) {
