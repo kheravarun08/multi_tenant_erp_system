@@ -53,8 +53,6 @@ const invoiceController = require("../controllers/invoice.controller");
  */
 router.post("/", invoiceController.createInvoice);
 
-router.post("/", invoiceController.createInvoice);
-
 /**
  * @swagger
  * /invoices/{id}:

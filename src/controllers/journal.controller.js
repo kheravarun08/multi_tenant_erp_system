@@ -6,7 +6,6 @@ const {
 exports.getJournalEntries = async (req, res) => {
     try {
 
-        // const tenantId = req.headers["x-tenant-id"];
         const {
             tenantId
         } = req.context;

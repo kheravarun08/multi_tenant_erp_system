@@ -5,20 +5,16 @@ const {
     invoiceLineItems,
     payments,
     paymentAllocations,
-    journalEntries,
-    journalEntryLines,
     auditLogs
 } = require("../data/mock-db");
 const {
     canTransition
 } = require("../utils/invoice-state-machine");
 
+const glService = require("../services/gl.service");
+
 exports.createInvoice = async (req, res) => {
     try {
-
-        // const tenantId = req.headers["x-tenant-id"];
-        // const entityId = req.headers["x-entity-id"];
-        // const userId = req.headers["x-user-id"];
 
         const {
             tenantId,
@@ -225,13 +221,8 @@ exports.getInvoiceById = async (req, res) => {
 exports.approveInvoice = async (req, res) => {
     try {
 
-        // const tenantId = req.headers["x-tenant-id"];
-        // const entityId = req.headers["x-entity-id"];
-        // const userId = req.headers["x-user-id"];
-
         const {
             tenantId,
-            entityId,
             userId
         } = req.context;
 
@@ -257,15 +248,6 @@ exports.approveInvoice = async (req, res) => {
             });
         }
 
-        /*
-         Only draft invoices can be approved
-        */
-        // if (invoice.status !== "DRAFT") {
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: `Invoice cannot be approved because current status is ${invoice.status}`
-        //     });
-        // }
         if (
             !canTransition(
                 invoice.status,
@@ -296,49 +278,10 @@ exports.approveInvoice = async (req, res) => {
         invoice.updatedBy = userId;
         invoice.updatedAt = new Date();
 
-        /*
-         Create Journal Entry Header
-        */
-        const journalEntry = {
-            id: `JE-${Date.now()}`,
-            tenantId,
-            entityId,
-            referenceType: "INVOICE",
-            referenceId: invoice.id,
-            invoiceNumber: invoice.invoiceNumber,
-            postingDate: new Date(),
-            description: `Invoice Approval ${invoice.invoiceNumber}`,
-            createdBy: userId,
-            createdAt: new Date()
-        };
-
-        journalEntries.push(journalEntry);
-
-        /*
-         Debit Accounts Receivable
-        */
-        journalEntryLines.push({
-            id: `JEL-${Date.now()}-1`,
-            journalEntryId: journalEntry.id,
-            glAccountCode: "1100",
-            glAccountName: "Accounts Receivable",
-            debit: invoice.totalAmount,
-            credit: 0,
-            currency: invoice.currency
-        });
-
-        /*
-         Credit Revenue
-        */
-        journalEntryLines.push({
-            id: `JEL-${Date.now()}-2`,
-            journalEntryId: journalEntry.id,
-            glAccountCode: "4000",
-            glAccountName: "Revenue",
-            debit: 0,
-            credit: invoice.totalAmount,
-            currency: invoice.currency
-        });
+        const journalEntry = glService.createInvoiceJournal(
+            invoice,
+            userId
+        );
 
         /*
          Audit Log
