@@ -96,6 +96,9 @@ exports.createInvoice = async (req, res) => {
             taxAmount: 0,
             totalAmount: subtotal,
             balanceAmount: subtotal,
+            // For simplicity, we are not handling credit memos or write-offs in this example
+            creditMemoAmount: 0,
+            writeOffAmount: 0,
 
             createdBy: userId,
             createdAt: new Date(),
@@ -104,6 +107,19 @@ exports.createInvoice = async (req, res) => {
         };
 
         invoices.push(invoice);
+
+        auditLogs.push({
+            id: `AUD-${Date.now()}`,
+            tenantId,
+            entityId,
+            tableName: "invoice",
+            recordId: invoice.id,
+            action: "CREATE",
+            oldValue: null,
+            newValue: invoice,
+            performedBy: userId,
+            performedAt: new Date()
+        });
 
         return res.status(201).json({
             success: true,
