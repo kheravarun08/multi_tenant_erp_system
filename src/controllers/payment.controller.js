@@ -38,32 +38,6 @@ exports.createPayment = async (req, res) => {
             allocations
         } = req.body;
 
-        let finalAllocations = allocations;
-
-        if (
-            (!allocations || allocations.length === 0)
-            && req.body.autoAllocate
-        ) {
-            finalAllocations = invoices
-                .filter(
-                    i =>
-                        i.customerId === customerId &&
-                        i.balanceAmount > 0
-                )
-                .sort(
-                    (a, b) =>
-                        new Date(a.dueDate)
-                        -
-                        new Date(b.dueDate)
-                )
-                .map(i => ({
-                    invoiceId: i.id,
-                    amount: Math.min(
-                        i.balanceAmount,
-                        amount
-                    )
-                }));
-        }
         if (!customerId) {
             return res.status(400).json({
                 success: false,
@@ -77,6 +51,57 @@ exports.createPayment = async (req, res) => {
                 message: "Payment amount must be greater than zero"
             });
         }
+
+        let finalAllocations = allocations;
+
+        if (
+            (!allocations || allocations.length === 0)
+            && req.body.autoAllocate
+        ) {
+
+            let remainingAmount = amount;
+
+            finalAllocations = [];
+
+            const eligibleInvoices = invoices
+                .filter(
+                    invoice =>
+                        invoice.customerId === customerId &&
+                        invoice.tenantId === tenantId &&
+                        invoice.entityId === entityId &&
+                        invoice.balanceAmount > 0 &&
+                        (
+                            invoice.status === "APPROVED" ||
+                            invoice.status === "PARTIALLY_PAID"
+                        )
+                )
+                .sort(
+                    (a, b) =>
+                        new Date(a.dueDate) -
+                        new Date(b.dueDate)
+                );
+
+            for (const invoice of eligibleInvoices) {
+
+                if (remainingAmount <= 0) {
+                    break;
+                }
+
+                const allocationAmount = Math.min(
+                    invoice.balanceAmount,
+                    remainingAmount
+                );
+
+                finalAllocations.push({
+                    invoiceId: invoice.id,
+                    amount: allocationAmount
+                });
+
+                remainingAmount -= allocationAmount;
+            }
+
+        }
+
 
         const paymentId = uuidv4();
 
@@ -101,16 +126,16 @@ exports.createPayment = async (req, res) => {
         const allocationResults = [];
 
         /*
-            Manual allocation mode
-        */
-        if (allocations && allocations.length > 0) {
-
-            for(const allocation of finalAllocations) {
+     Process payment allocations
+ */
+        if (finalAllocations && finalAllocations.length > 0) {
+            for (const allocation of finalAllocations) {
 
                 const invoice = invoices.find(
                     inv =>
                         inv.id === allocation.invoiceId &&
-                        inv.tenantId === tenantId
+                        inv.tenantId === tenantId &&
+                        inv.entityId === entityId
                 );
 
                 if (!invoice) {
@@ -165,8 +190,8 @@ exports.createPayment = async (req, res) => {
         }
 
         /*
-            Validate payment amount
-        */
+     Validate payment amount
+ */
         if (totalAllocated > amount) {
             return res.status(400).json({
                 success: false,
