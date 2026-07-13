@@ -7,6 +7,7 @@ exports.getCustomerAging = async (req, res) => {
 
         const {
             tenantId,
+            entityId,
         } = req.context;
 
         if (!tenantId) {
@@ -22,6 +23,7 @@ exports.getCustomerAging = async (req, res) => {
             invoice =>
                 invoice.customerId === customerId &&
                 invoice.tenantId === tenantId &&
+                invoice.entityId === entityId &&
                 invoice.balanceAmount > 0 &&
                 (
                     invoice.status === "APPROVED" ||
@@ -32,6 +34,7 @@ exports.getCustomerAging = async (req, res) => {
         let current = 0;
         let days30 = 0;
         let days60 = 0;
+        let days90 = 0;
         let days90Plus = 0;
 
         const today = new Date();
@@ -53,6 +56,9 @@ exports.getCustomerAging = async (req, res) => {
             else if (ageInDays <= 60) {
                 days60 += invoice.balanceAmount;
             }
+            else if (ageInDays <= 90) {
+                days90 += invoice.balanceAmount;
+            }
             else {
                 days90Plus += invoice.balanceAmount;
             }
@@ -66,12 +72,14 @@ exports.getCustomerAging = async (req, res) => {
                     current,
                     days30,
                     days60,
+                    days90,
                     days90Plus
                 },
                 totalOutstanding:
                     current +
                     days30 +
                     days60 +
+                    days90 +
                     days90Plus,
                 currency:
                     customerInvoices.length > 0
