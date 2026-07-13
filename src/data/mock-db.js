@@ -9,6 +9,8 @@ const journalEntryLines = [];
 
 const auditLogs = [];
 
+const idempotencyStore = [];
+
 module.exports = {
     invoices,
     invoiceLineItems,
@@ -16,5 +18,6 @@ module.exports = {
     paymentAllocations,
     journalEntries,
     journalEntryLines,
-    auditLogs
+    auditLogs,
+    idempotencyStore
 };

@@ -10,7 +10,9 @@ const {
     payments,
     paymentAllocations,
     journalEntries,
-    journalEntryLines
+    journalEntryLines,
+    auditLogs,
+    idempotencyStore
 } = require("../data/mock-db");
 
 exports.createPayment = async (req, res) => {
@@ -22,6 +24,28 @@ exports.createPayment = async (req, res) => {
             userId
         } = req.context;
 
+        const idempotencyKey =
+            req.headers["idempotency-key"];
+
+        if (!idempotencyKey) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Idempotency-Key header is required"
+            });
+
+        }
+
+        const existingRequest =
+            idempotencyStore.find(
+                request =>
+                    request.tenantId === tenantId &&
+                    request.idempotencyKey === idempotencyKey
+            );
+
+        if (existingRequest) {
+            return res.status(200).json(existingRequest.response);
+        }
         if (!tenantId) {
             return res.status(400).json({
                 success: false,
@@ -242,7 +266,11 @@ exports.createPayment = async (req, res) => {
             credit: amount
         });
 
-        return res.status(201).json({
+        auditLogs.push({
+            tableName: "payment",
+            action: "CREATE"
+        });
+        const response = {
             success: true,
             message: "Payment recorded successfully",
             data: {
@@ -252,7 +280,15 @@ exports.createPayment = async (req, res) => {
                 allocations: allocationResults,
                 journalEntryId: journalEntry.id
             }
+        };
+
+        idempotencyStore.push({
+            tenantId,
+            idempotencyKey,
+            response
         });
+
+        return res.status(201).json(response);
 
     } catch (error) {
 
