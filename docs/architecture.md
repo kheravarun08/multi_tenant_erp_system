@@ -31,31 +31,18 @@ Database
 
 # 2. Entity Relationship Model
 
-```text
-Tenant
- │
- ├───────────────┐
- │               │
-Entity        Customer
- │               │
- │               │
- │           Invoice
- │               │
- │        Invoice Line Item
- │               │
- │        Payment Allocation
- │               │
-Payment      Credit Memo
- │               │
- └───────Journal Entry────────┐
-                              │
-                       Journal Entry Line
-                              │
-                         GL Account
 
-Audit Log
-(Tracks changes across all entities)
-```
+![ER Diagram](images/erdiagram.png)
+
+---
+
+## Entity Relationship Diagram
+
+<p align="center">
+    <img src="docs/images/erdiagram.png"
+         width="1200"
+         alt="ER Diagram"/>
+</p>
 
 ---
 
