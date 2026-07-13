@@ -267,8 +267,17 @@ exports.createPayment = async (req, res) => {
         });
 
         auditLogs.push({
+            id: `AUD-${Date.now()}`,
+            tenantId,
+            entityId,
             tableName: "payment",
-            action: "CREATE"
+            recordId: paymentId,
+            action: "CREATE",
+
+            oldValue: null,
+            newValue: payment,
+            performedBy: userId,
+            performedAt: new Date()
         });
         const response = {
             success: true,
