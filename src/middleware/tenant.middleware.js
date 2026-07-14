@@ -3,12 +3,6 @@ module.exports = (req, res, next) => {
     const entityId = req.headers["x-entity-id"];
     const userId = req.headers["x-user-id"];
 
-    // const {
-    //     tenantId,
-    //     entityId,
-    //     userId
-    // } = req.context;
-
     if (!tenantId) {
         return res.status(400).json({
             success: false,
