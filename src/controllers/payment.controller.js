@@ -44,7 +44,11 @@ exports.createPayment = async (req, res) => {
             );
 
         if (existingRequest) {
-            return res.status(200).json(existingRequest.response);
+            console.log("Duplicate payment request detected.");
+            return res.status(200).json({
+                ...existingRequest.response,
+                idempotent: true
+            });
         }
         if (!tenantId) {
             return res.status(400).json({
